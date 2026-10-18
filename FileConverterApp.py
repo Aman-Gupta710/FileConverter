@@ -35,7 +35,7 @@ class FileConverterAppDelegate(NSObject):
 
 class ConverterView(NSView):
     def initWithFrame_(self, frame):
-        self = super(ConverterView, self).initWithFrame_(frame)
+        self = objc.super(ConverterView, self).initWithFrame_(frame)
         if self:
             self.setupUI()
         return self
