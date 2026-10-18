@@ -1,0 +1,100 @@
+version: "1.0"
+
+converters:
+  # Image converters
+  - id: "image-jpg-to-png"
+    name: "JPEG → PNG"
+    category: "image"
+    inputFormats: ["jpg", "jpeg"]
+    outputFormats: ["png"]
+    tool: "ffmpeg"
+    command: "ffmpeg -i {input} -y {output}"
+    options:
+      - name: "quality"
+        type: "select"
+        values: ["high", "medium", "low"]
+        default: "high"
+
+  - id: "image-to-webp"
+    name: "Convert to WebP"
+    category: "image"
+    inputFormats: ["jpg", "jpeg", "png", "gif"]
+    outputFormats: ["webp"]
+    tool: "cwebp"
+    command: "cwebp -q {quality} {input} -o {output}"
+    options:
+      - name: "quality"
+        type: "slider"
+        min: 0
+        max: 100
+        default: 80
+
+  - id: "image-png-to-jpg"
+    name: "PNG → JPEG"
+    category: "image"
+    inputFormats: ["png"]
+    outputFormats: ["jpg"]
+    tool: "ffmpeg"
+    command: "ffmpeg -i {input} -q:v {quality} -y {output}"
+    options:
+      - name: "quality"
+        type: "select"
+        values: ["95", "80", "65"]
+        default: "80"
+
+  # Video converters
+  - id: "video-mp4-to-mov"
+    name: "MP4 → MOV"
+    category: "video"
+    inputFormats: ["mp4"]
+    outputFormats: ["mov"]
+    tool: "ffmpeg"
+    command: "ffmpeg -i {input} -c:v prores_ks -profile:v 3 -y {output}"
+    options: []
+
+  - id: "video-to-mp4"
+    name: "Convert to MP4"
+    category: "video"
+    inputFormats: ["mov", "avi", "mkv"]
+    outputFormats: ["mp4"]
+    tool: "ffmpeg"
+    command: "ffmpeg -i {input} -c:v libx264 -preset {speed} -y {output}"
+    options:
+      - name: "speed"
+        type: "select"
+        values: ["fast", "medium", "slow"]
+        default: "medium"
+
+  # Audio converters
+  - id: "audio-mp3-to-wav"
+    name: "MP3 → WAV"
+    category: "audio"
+    inputFormats: ["mp3"]
+    outputFormats: ["wav"]
+    tool: "ffmpeg"
+    command: "ffmpeg -i {input} -y {output}"
+    options: []
+
+  - id: "audio-to-mp3"
+    name: "Convert to MP3"
+    category: "audio"
+    inputFormats: ["wav", "aac", "flac"]
+    outputFormats: ["mp3"]
+    tool: "ffmpeg"
+    command: "ffmpeg -i {input} -q:a {quality} -y {output}"
+    options:
+      - name: "quality"
+        type: "slider"
+        min: 0
+        max: 9
+        default: 5
+
+  # Document converters
+  - id: "pdf-compress"
+    name: "Compress PDF"
+    category: "document"
+    inputFormats: ["pdf"]
+    outputFormats: ["pdf"]
+    tool: "gs"
+    command: "gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile={output} {input}"
+    options: []
