@@ -46,114 +46,155 @@ struct FileConverterCLI {
         let outputURL = URL(fileURLWithPath: outputPath)
         let inputExt = inputURL.pathExtension.lowercased()
 
-        // Run async code synchronously
-        let semaphore = DispatchSemaphore(value: 0)
-        var conversionError: Error?
+        do {
+            let configLoader = ConfigLoader()
 
-        Task {
-            do {
-                let configLoader = ConfigLoader()
-                let converters = try await configLoader.loadDefaultConverters()
+            // Use RunLoop to execute async code
+            var converters: [Converter] = []
+            var loadError: Error?
 
-                // Find suitable converter based on file extension
-                let suitableConverters = converters.filter { converter in
-                    converter.inputFormats.contains(inputExt)
-                }
-
-                guard !suitableConverters.isEmpty else {
-                    print("Error: No converter found for .\(inputExt) files")
-                    print("Use 'fileconverter list' to see supported formats")
-                    semaphore.signal()
-                    return
-                }
-
-                let converter = suitableConverters[0]
-                print("📁 Converting: \(inputURL.lastPathComponent)")
-                print("🔧 Using converter: \(converter.name)")
-                print("📝 Command: \(converter.command)")
-
-                let engine = ConverterEngine(converter: converter)
-
-                // Parse additional options from command line
-                var options: [String: String] = [:]
-                var i = 2
-                while i < arguments.count {
-                    if arguments[i] == "--option" && i + 1 < arguments.count {
-                        let parts = arguments[i + 1].split(separator: "=", maxSplits: 1)
-                        if parts.count == 2 {
-                            options[String(parts[0])] = String(parts[1])
-                        }
-                        i += 2
-                    } else {
-                        i += 1
+            let semaphore = DispatchSemaphore(value: 0)
+            DispatchQueue.global().async {
+                Task {
+                    do {
+                        converters = try await configLoader.loadDefaultConverters()
+                    } catch {
+                        loadError = error
                     }
+                    semaphore.signal()
                 }
-
-                var job = ConversionJob(
-                    inputURL: inputURL,
-                    converter: converter,
-                    selectedOptions: options
-                )
-
-                try await engine.convert(job: &job) { progress in
-                    print("Progress: \(Int(progress * 100))%")
-                }
-
-                print("✅ Conversion successful!")
-                if let resultURL = job.outputURL {
-                    print("📂 Output: \(resultURL.path)")
-                }
-
-            } catch {
-                print("❌ Error: \(error.localizedDescription)")
-                conversionError = error
             }
-            semaphore.signal()
-        }
 
-        semaphore.wait()
-        exit(conversionError != nil ? 1 : 0)
+            // Wait with timeout
+            let result = semaphore.wait(timeout: .now() + 10.0)
+
+            if result == .timedOut {
+                print("Error: Timeout loading converters")
+                exit(1)
+            }
+
+            if let error = loadError {
+                print("Error: \(error.localizedDescription)")
+                exit(1)
+            }
+
+            // Find suitable converter based on file extension
+            let suitableConverters = converters.filter { converter in
+                converter.inputFormats.contains(inputExt)
+            }
+
+            guard !suitableConverters.isEmpty else {
+                print("Error: No converter found for .\(inputExt) files")
+                print("Use 'fileconverter list' to see supported formats")
+                exit(1)
+            }
+
+            let converter = suitableConverters[0]
+            print("📁 Converting: \(inputURL.lastPathComponent)")
+            print("🔧 Using: \(converter.name)")
+            print("Tool: \(converter.tool)")
+            print("Command: \(converter.command)")
+
+            let engine = ConverterEngine(converter: converter)
+
+            var job = ConversionJob(
+                inputURL: inputURL,
+                converter: converter
+            )
+
+            let conversionSemaphore = DispatchSemaphore(value: 0)
+            var conversionError: Error?
+
+            DispatchQueue.global().async {
+                Task {
+                    do {
+                        try await engine.convert(job: &job) { progress in
+                            print("Progress: \(Int(progress * 100))%")
+                        }
+                    } catch {
+                        conversionError = error
+                    }
+                    conversionSemaphore.signal()
+                }
+            }
+
+            let convResult = conversionSemaphore.wait(timeout: .now() + 300.0)
+
+            if convResult == .timedOut {
+                print("Error: Conversion timeout")
+                exit(1)
+            }
+
+            if let error = conversionError {
+                print("Error: \(error.localizedDescription)")
+                exit(1)
+            }
+
+            print("✅ Conversion successful!")
+            print("Output: \(outputPath)")
+
+        } catch {
+            print("Error: \(error.localizedDescription)")
+            exit(1)
+        }
     }
 
     private static func handleList() {
-        // Run async code synchronously
+        let configLoader = ConfigLoader()
+
         let semaphore = DispatchSemaphore(value: 0)
+        var converters: [Converter] = []
+        var loadError: Error?
 
-        Task {
-            do {
-                let configLoader = ConfigLoader()
-                let converters = try await configLoader.loadDefaultConverters()
-
-                print("\n📋 Available Converters:\n")
-
-                var categories: [String: [Converter]] = [:]
-                for converter in converters {
-                    if categories[converter.category] == nil {
-                        categories[converter.category] = []
-                    }
-                    categories[converter.category]?.append(converter)
+        DispatchQueue.global().async {
+            Task {
+                do {
+                    converters = try await configLoader.loadDefaultConverters()
+                } catch {
+                    loadError = error
                 }
-
-                for (category, converters) in categories.sorted(by: { $0.key < $1.key }) {
-                    print("[\(category.uppercased())]")
-                    for converter in converters {
-                        let inputFormats = converter.inputFormats.joined(separator: ", ")
-                        let outputFormats = converter.outputFormats.joined(separator: ", ")
-                        print("  • \(converter.name)")
-                        print("    Input: \(inputFormats)")
-                        print("    Output: \(outputFormats)")
-                        print("    ID: \(converter.id)")
-                    }
-                    print()
-                }
-
-            } catch {
-                print("Error: \(error.localizedDescription)")
+                semaphore.signal()
             }
-            semaphore.signal()
         }
 
-        semaphore.wait()
+        let result = semaphore.wait(timeout: .now() + 10.0)
+
+        if result == .timedOut {
+            print("Error: Timeout loading converters")
+            exit(1)
+        }
+
+        if let error = loadError {
+            print("Error: \(error.localizedDescription)")
+            exit(1)
+        }
+
+        if converters.isEmpty {
+            print("No converters found")
+            exit(1)
+        }
+
+        print("\n📋 Available Converters:\n")
+
+        var categories: [String: [Converter]] = [:]
+        for converter in converters {
+            if categories[converter.category] == nil {
+                categories[converter.category] = []
+            }
+            categories[converter.category]?.append(converter)
+        }
+
+        for (category, converters) in categories.sorted(by: { $0.key < $1.key }) {
+            print("[\(category.uppercased())]")
+            for converter in converters {
+                let inputFormats = converter.inputFormats.joined(separator: ", ")
+                let outputFormats = converter.outputFormats.joined(separator: ", ")
+                print("  • \(converter.name)")
+                print("    Input: \(inputFormats)")
+                print("    Output: \(outputFormats)")
+            }
+            print()
+        }
     }
 
     private static func printUsage() {
@@ -168,19 +209,14 @@ struct FileConverterCLI {
         EXAMPLES:
             fileconverter convert photo.jpg photo.png
             fileconverter convert video.mp4 video.mov
-            fileconverter convert document.pdf document-compressed.pdf
-            fileconverter list
 
         SUPPORTED FORMATS:
             Images:    JPEG, PNG, WebP, GIF
             Video:     MP4, MOV, AVI, MKV
             Audio:     MP3, WAV, AAC, FLAC
-            Documents: PDF (compression)
-
-        For more info, visit: https://github.com/Aman-Gupta710/FileConverter
+            Documents: PDF
         """)
     }
 }
 
-// Entry point
 FileConverterCLI.main()
