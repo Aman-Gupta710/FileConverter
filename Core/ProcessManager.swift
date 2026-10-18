@@ -17,10 +17,12 @@ enum ProcessManagerError: LocalizedError {
     }
 }
 
-class ProcessManager {
+public class ProcessManager {
     private let toolManager = ToolManager()
 
-    func execute(tool: String, arguments: [String], progressHandler: ((Double) -> Void)?, cancellationToken: NSObjectProtocol?) async throws -> String {
+    public init() {}
+
+    public func execute(tool: String, arguments: [String], progressHandler: ((Double) -> Void)?, cancellationToken: NSObjectProtocol?) async throws -> String {
         let toolPath = try toolManager.getToolPath(name: tool)
 
         return try await withCheckedThrowingContinuation { continuation in

@@ -14,15 +14,15 @@ enum ToolManagerError: LocalizedError {
     }
 }
 
-class ToolManager {
+public class ToolManager {
     private let bundledToolsPath: URL
 
-    init() {
+    public init() {
         bundledToolsPath = Bundle.main.bundleURL
             .appendingPathComponent("Contents/Resources/Tools")
     }
 
-    func getToolPath(name: String) throws -> URL {
+    public func getToolPath(name: String) throws -> URL {
         if let bundledPath = getBundledToolPath(name: name) {
             return bundledPath
         }

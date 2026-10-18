@@ -1,12 +1,12 @@
 import Foundation
 
-enum ConfigLoaderError: LocalizedError {
+public enum ConfigLoaderError: LocalizedError {
     case fileNotFound(path: String)
     case invalidYAML(error: String)
     case missingRequiredField(field: String)
     case invalidSchema(detail: String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .fileNotFound(let path):
             return "Config file not found: \(path)"
@@ -20,8 +20,10 @@ enum ConfigLoaderError: LocalizedError {
     }
 }
 
-class ConfigLoader {
-    func loadConverters(from url: URL) async throws -> [Converter] {
+public class ConfigLoader {
+    public init() {}
+
+    public func loadConverters(from url: URL) async throws -> [Converter] {
         let fileManager = FileManager.default
         guard fileManager.fileExists(atPath: url.path) else {
             throw ConfigLoaderError.fileNotFound(path: url.path)
@@ -30,8 +32,8 @@ class ConfigLoader {
         let yaml = try String(contentsOf: url, encoding: .utf8)
         let decoder = YAMLDecoder()
 
-        guard let configDict = try decoder.decode([String: Any].self, from: yaml),
-              let convertersArray = configDict["converters"] as? [[String: Any]] else {
+        let configDict = try decoder.decode([String: Any].self, from: yaml)
+        guard let convertersArray = configDict["converters"] as? [[String: Any]] else {
             throw ConfigLoaderError.invalidYAML(error: "Top-level structure invalid")
         }
 
@@ -57,15 +59,26 @@ class ConfigLoader {
         return converters
     }
 
-    func loadDefaultConverters() async throws -> [Converter] {
-        guard let defaultConfigURL = Bundle.main
-            .url(forResource: "converters", withExtension: "yaml") else {
-            throw ConfigLoaderError.fileNotFound(path: "converters.yaml in bundle")
+    public func loadDefaultConverters() async throws -> [Converter] {
+        // Try multiple locations for converters.yaml
+        let possiblePaths = [
+            Bundle.main.url(forResource: "converters", withExtension: "yaml"),
+            URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("converters.yaml"),
+            URL(fileURLWithPath: "/usr/local/etc/fileconverter/converters.yaml"),
+            FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".fileconverter/converters.yaml"),
+            FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("FileConverter/converters.yaml")
+        ].compactMap { $0 }
+
+        for path in possiblePaths {
+            if FileManager.default.fileExists(atPath: path.path) {
+                return try await loadConverters(from: path)
+            }
         }
-        return try await loadConverters(from: defaultConfigURL)
+
+        throw ConfigLoaderError.fileNotFound(path: "converters.yaml (searched in bundle, current dir, /usr/local/etc, ~/.fileconverter, ~/Library/Application Support)")
     }
 
-    func loadUserConverters() async throws -> [Converter] {
+    public func loadUserConverters() async throws -> [Converter] {
         let appSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let userConfigURL = appSupportURL
             .appendingPathComponent("FileConverter")
@@ -97,7 +110,7 @@ class YAMLDecoder {
                 let value = trimmed.replacingOccurrences(of: "version:", with: "").trimmingCharacters(in: .whitespaces)
                 result["version"] = value.replacingOccurrences(of: "\"", with: "")
             } else if trimmed == "- id:" || (trimmed.starts(with: "- id:") && currentConverter != nil) {
-                if let converter = currentConverter {
+                if var converter = currentConverter {
                     converter["options"] = currentOptions
                     converters.append(converter)
                 }
@@ -111,7 +124,7 @@ class YAMLDecoder {
             // Simplified - full YAML parsing would be more comprehensive
         }
 
-        if let converter = currentConverter {
+        if var converter = currentConverter {
             converter["options"] = currentOptions
             converters.append(converter)
         }

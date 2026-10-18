@@ -1,9 +1,14 @@
 import Foundation
 
-class ConverterEngine {
+public class ConverterEngine {
+    private let converter: Converter?
     private let processManager = ProcessManager()
 
-    func convert(job: inout ConversionJob, progressHandler: ((Double) -> Void)?) async throws {
+    public init(converter: Converter? = nil) {
+        self.converter = converter
+    }
+
+    public func convert(job: inout ConversionJob, progressHandler: ((Double) -> Void)? = nil) async throws {
         let fileManager = FileManager.default
         guard fileManager.fileExists(atPath: job.inputURL.path) else {
             job.state = .failed(error: "Input file not found")
@@ -28,7 +33,7 @@ class ConverterEngine {
         }
     }
 
-    func buildCommand(from job: ConversionJob) -> String {
+    public func buildCommand(from job: ConversionJob) -> String {
         var command = job.converter.command
         command = command.replacingOccurrences(of: "{input}", with: job.inputURL.path)
         let outputPath = determineOutputPath(inputURL: job.inputURL, converter: job.converter).path

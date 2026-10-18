@@ -2,25 +2,25 @@ import Foundation
 import Combine
 
 @MainActor
-class JobQueue: ObservableObject {
+public class JobQueue: ObservableObject {
     @Published var jobs: [ConversionJob] = []
     @Published var isProcessing = false
 
     private let converterEngine = ConverterEngine()
     private var processingTask: Task<Void, Never>?
 
-    func enqueue(job: ConversionJob) {
+    public func enqueue(job: ConversionJob) {
         jobs.append(job)
         startProcessing()
     }
 
-    func cancel(jobId: UUID) {
+    public func cancel(jobId: UUID) {
         if let index = jobs.firstIndex(where: { $0.id == jobId }) {
             jobs[index].state = .cancelled
         }
     }
 
-    func getJob(id: UUID) -> ConversionJob? {
+    public func getJob(id: UUID) -> ConversionJob? {
         jobs.first(where: { $0.id == id })
     }
 
