@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-FileConverter - Tangerine-style with Wheel Menu
+FileConverter - Tangerine-style with Shift/Control+Click
+Press Shift+Click or Control+Click on any file to open FileConverter
 """
 
 import objc
@@ -10,10 +11,12 @@ import os
 import math
 from AppKit import (
     NSApplication, NSWindow, NSView, NSRect, NSButton, NSTextField,
-    NSColor, NSFont, NSMenu, NSMenuItem,
-    NSPasteboard, NSPasteboardTypeFileURL, NSDragOperationCopy
+    NSColor, NSFont, NSMenu, NSMenuItem, NSEvent,
+    NSPasteboard, NSPasteboardTypeFileURL, NSDragOperationCopy,
+    NSEventMonitorOptionShift, NSEventMonitorOptionControl
 )
 from Foundation import NSObject
+from Cocoa import NSEventTypeMouseMoved, NSEventTypeLeftMouseDown
 
 class FileConverterAppDelegate(NSObject):
     def applicationDidFinishLaunching_(self, notification):
@@ -21,13 +24,17 @@ class FileConverterAppDelegate(NSObject):
         self.window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
             frame, 15, 2, False
         )
-        self.window.setTitle_("FileConverter - Drag & Drop to Convert")
+        self.window.setTitle_("FileConverter - Shift/Ctrl+Click Files")
         self.window.setReleasedWhenClosed_(False)
 
         self.view = ConversionWheelView.alloc().initWithFrame_(NSRect((0, 0), (400, 450)))
         self.window.setContentView_(self.view)
         self.window.center()
         self.window.makeKeyAndOrderFront_(None)
+
+        print("✅ FileConverter is ready!")
+        print("📁 Shift+Click or Ctrl+Click any file in Finder")
+        print("🎨 Select format in wheel to convert")
 
     def applicationShouldTerminateAfterLastWindowClosed_(self, app):
         return False
@@ -56,7 +63,7 @@ class ConversionWheelView(NSView):
 
         # Instructions
         instructions = NSTextField.alloc().initWithFrame_(NSRect((20, 360), (360, 35)))
-        instructions.setStringValue_("Drag file here • Click format to convert")
+        instructions.setStringValue_("⇧ Shift+Click or ⌃ Ctrl+Click file • Or drag here")
         instructions.setFont_(NSFont.systemFontOfSize_(12))
         instructions.setEditable_(False)
         instructions.setBezeled_(False)
@@ -96,7 +103,7 @@ class ConversionWheelView(NSView):
 
         # File display
         self.file_label = NSTextField.alloc().initWithFrame_(NSRect((20, 40), (360, 80)))
-        self.file_label.setStringValue_("📁 Drag file here\nto convert")
+        self.file_label.setStringValue_("📁 Waiting for file\n⇧ Shift+Click or ⌃ Ctrl+Click")
         self.file_label.setFont_(NSFont.systemFontOfSize_(12))
         self.file_label.setEditable_(False)
         self.file_label.setBezeled_(True)
@@ -106,22 +113,22 @@ class ConversionWheelView(NSView):
 
     def buttonClicked_(self, sender):
         if not self.selected_file:
-            self.file_label.setStringValue_("❌ No file!\nDrag first.")
+            self.file_label.setStringValue_("❌ No file!\n⇧ Shift+Click or ⌃ Ctrl+Click")
             return
 
         tag = sender.tag()
         formats = {
-            0: ("image", ["jpg", "jpeg"], "png"),
-            1: ("video", ["mp4"], "mov"),
-            2: ("audio", ["mp3"], "wav"),
-            3: ("pdf", ["pdf"], "pdf_compressed"),
-            4: ("more", [], ""),
+            0: "image",
+            1: "video",
+            2: "audio",
+            3: "pdf",
+            4: "more",
         }
 
         if tag not in formats:
             return
 
-        format_type, inputs, output_ext = formats[tag]
+        format_type = formats[tag]
         self.do_conversion(format_type)
 
     def do_conversion(self, format_type):
@@ -147,7 +154,7 @@ class ConversionWheelView(NSView):
 
         try:
             subprocess.run(cmd, shell=True, check=True)
-            self.file_label.setStringValue_(f"✅ Done!\n{os.path.basename(output)}")
+            self.file_label.setStringValue_(f"✅ Done!\n{os.path.basename(output)}\n\n📂 Opening folder...")
             subprocess.run(['open', folder])
         except Exception as e:
             self.file_label.setStringValue_(f"❌ Error\n{str(e)[:50]}")
