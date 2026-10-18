@@ -9,8 +9,6 @@ import sys
 from AppKit import NSApplication, NSWindow, NSView, NSRect, NSButton, NSTextField, NSComboBox, NSScrollView
 from AppKit import NSColor, NSFont, NSTextView, NSPasteboard
 from Foundation import NSObject
-import subprocess
-import os
 
 class FileConverterAppDelegate(NSObject):
     window = objc.IBOutlet()
@@ -19,7 +17,7 @@ class FileConverterAppDelegate(NSObject):
         frame = NSRect((0, 0), (800, 600))
         self.window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
             frame,
-            0xF,  # NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable
+            15,  # NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable
             2,
             False
         )
@@ -42,33 +40,35 @@ class ConverterView(NSView):
             self.setupUI()
         return self
 
-    def createLabel_(self, frame, text, size=12, color=None):
-        label = NSTextField.alloc().initWithFrame_(frame)
-        label.setStringValue_(text)
-        label.setFont_(NSFont.systemFontOfSize_(size))
-        label.setEditable_(False)
-        label.setBezeled_(False)
-        label.setDrawsBackground_(False)
-        if color:
-            label.setTextColor_(color)
-        return label
-
     def setupUI(self):
-        # Background color
         self.setBackgroundColor_(NSColor.whiteColor())
 
         # Title
-        title = self.createLabel_(NSRect((20, 500), (400, 50)), "🎨 FileConverter", size=28)
+        title = NSTextField.alloc().initWithFrame_(NSRect((20, 500), (400, 50)))
+        title.setStringValue_("🎨 FileConverter")
+        title.setFont_(NSFont.systemFontOfSize_(28))
+        title.setEditable_(False)
+        title.setBezeled_(False)
+        title.setDrawsBackground_(False)
         self.addSubview_(title)
 
         # Subtitle
-        subtitle = self.createLabel_(NSRect((20, 475), (600, 20)),
-                                     "Offline file conversion • No limits • No subscriptions",
-                                     size=12, color=NSColor.grayColor())
+        subtitle = NSTextField.alloc().initWithFrame_(NSRect((20, 475), (600, 20)))
+        subtitle.setStringValue_("Offline file conversion • No limits • No subscriptions")
+        subtitle.setFont_(NSFont.systemFontOfSize_(12))
+        subtitle.setEditable_(False)
+        subtitle.setBezeled_(False)
+        subtitle.setDrawsBackground_(False)
+        subtitle.setTextColor_(NSColor.grayColor())
         self.addSubview_(subtitle)
 
         # Format selector label
-        format_label = self.createLabel_(NSRect((20, 430), (200, 20)), "📁 Select Format:")
+        format_label = NSTextField.alloc().initWithFrame_(NSRect((20, 430), (200, 20)))
+        format_label.setStringValue_("📁 Select Format:")
+        format_label.setFont_(NSFont.systemFontOfSize_(13))
+        format_label.setEditable_(False)
+        format_label.setBezeled_(False)
+        format_label.setDrawsBackground_(False)
         self.addSubview_(format_label)
 
         # Format dropdown
@@ -83,7 +83,12 @@ class ConverterView(NSView):
         self.addSubview_(self.format_combo)
 
         # Input file label
-        input_label = self.createLabel_(NSRect((20, 365), (200, 20)), "📂 Input File:")
+        input_label = NSTextField.alloc().initWithFrame_(NSRect((20, 365), (200, 20)))
+        input_label.setStringValue_("📂 Input File:")
+        input_label.setFont_(NSFont.systemFontOfSize_(13))
+        input_label.setEditable_(False)
+        input_label.setBezeled_(False)
+        input_label.setDrawsBackground_(False)
         self.addSubview_(input_label)
 
         # Input file field
@@ -94,7 +99,12 @@ class ConverterView(NSView):
         self.addSubview_(self.input_field)
 
         # Output file label
-        output_label = self.createLabel_(NSRect((20, 300), (200, 20)), "💾 Output File:")
+        output_label = NSTextField.alloc().initWithFrame_(NSRect((20, 300), (200, 20)))
+        output_label.setStringValue_("💾 Output File:")
+        output_label.setFont_(NSFont.systemFontOfSize_(13))
+        output_label.setEditable_(False)
+        output_label.setBezeled_(False)
+        output_label.setDrawsBackground_(False)
         self.addSubview_(output_label)
 
         # Output file field
@@ -121,7 +131,12 @@ class ConverterView(NSView):
         self.addSubview_(copy_btn)
 
         # Command display label
-        cmd_label = self.createLabel_(NSRect((20, 185), (200, 20)), "🖥️ Terminal Command:")
+        cmd_label = NSTextField.alloc().initWithFrame_(NSRect((20, 185), (200, 20)))
+        cmd_label.setStringValue_("🖥️ Terminal Command:")
+        cmd_label.setFont_(NSFont.systemFontOfSize_(13))
+        cmd_label.setEditable_(False)
+        cmd_label.setBezeled_(False)
+        cmd_label.setDrawsBackground_(False)
         self.addSubview_(cmd_label)
 
         # Command text view
@@ -134,9 +149,13 @@ class ConverterView(NSView):
         self.addSubview_(self.command_view)
 
         # Footer
-        footer = self.createLabel_(NSRect((20, 15), (760, 20)),
-                                   "💡 Copy the command and paste it in Terminal to convert your file",
-                                   size=11, color=NSColor.grayColor())
+        footer = NSTextField.alloc().initWithFrame_(NSRect((20, 15), (760, 20)))
+        footer.setStringValue_("💡 Copy the command and paste it in Terminal to convert your file")
+        footer.setFont_(NSFont.systemFontOfSize_(11))
+        footer.setEditable_(False)
+        footer.setBezeled_(False)
+        footer.setDrawsBackground_(False)
+        footer.setTextColor_(NSColor.grayColor())
         self.addSubview_(footer)
 
     def generateCommand_(self, sender):
@@ -168,7 +187,7 @@ class ConverterView(NSView):
 
     def copyCommand_(self, sender):
         cmd = self.command_view.string()
-        if "Please select" in cmd or "⚠️" in cmd:
+        if "Please select" in cmd or "Select format" in cmd:
             return
 
         pb = NSPasteboard.generalPasteboard()
